@@ -29,13 +29,21 @@ io.on('connection', (socket) => {
 			socket.emit('server full');
 			return;
 		}
+		if (games.has(keyy)) {
+			socket.emit('invalid request');
+			return;
+		}
 		sockets[msg].push(socket);
 		keyy = msg;
-		for (let x = 0; x < sockets[msg].length - 1; x++) {
-			sockets[msg][x].emit('player join')
+		for (let x = 0; x < sockets[msg].length; x++) {
+			sockets[msg][x].emit('player join', sockets[keyy].length)
 		}
 	});
 	socket.on('game start', (msg) => {
+		if (games.has(keyy) || sockets[keyy][0].id != socket.id || sockets[keyy].length < 2) {
+			socket.emit('invalid request');
+			return;
+		}
 		games[keyy] = new Game(sockets[keyy].length);
 		for (let x = 0; x < sockets[keyy].length; x++) {
 			let arr = [];

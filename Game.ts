@@ -154,6 +154,7 @@ class Game {
 		} else if (!this.players[card.owner].hand.includes(card)) { //make sure that the player isn't fooling the server here
 			return 0;
 		}
+
 		if (this.tableBottom.filter((x) => x.rank == card.rank) || Object.values(this.tableTop).filter((x) => x.rank == card.rank)) {
 			if (this.tableBottom.length != this.players[this.currDefender].hand.length) {
 				let x = this.players[card.owner].hand.indexOf(card);

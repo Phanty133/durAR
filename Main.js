@@ -4,12 +4,11 @@ var Game_1 = require("./Game");
 var express = require("express");
 var games = new Map();
 var sockets = new Map(); //used for game wide socket broadcasts
+var playerCount = 2;
 var app = express();
 app.set("port", process.env.PORT || 3000);
 var http = require("http").Server(app);
-var io = require('socket.io')(http, {
-    transports: ['websocket']
-});
+var io = require('socket.io')(http);
 io.on('connection', function (socket) {
     console.log("Connection received!");
     var keyy;
@@ -22,6 +21,7 @@ io.on('connection', function (socket) {
         sockets[key].push(socket); //push the socket to the id
         socket.emit('game key', { "key": key }); //give the client the id
         keyy = key;
+        console.log("Game create!");
     });
     socket.on('game join', function (msg) {
         if (sockets[msg].length == 4) {
@@ -29,7 +29,7 @@ io.on('connection', function (socket) {
             return;
         }
         if (games.has(keyy)) {
-            socket.emit('invalid request');
+            socket.emit('invalid key');
             return;
         }
         sockets[msg].push(socket);
@@ -37,18 +37,26 @@ io.on('connection', function (socket) {
         for (var x = 0; x < sockets[msg].length; x++) {
             sockets[msg][x].emit('player join', sockets[keyy].length);
         }
+        if (sockets[keyy].length === playerCount) {
+            socket.emit("server ready");
+        }
     });
     socket.on('game start', function (msg) {
         if (games.has(keyy) || sockets[keyy][0].id != socket.id || sockets[keyy].length < 2) {
-            socket.emit('invalid request');
+            console.log(sockets[keyy].length);
+            console.log("Bad game key");
+            socket.emit('invalid key');
             return;
         }
+        console.log("Game starting... ");
         games[keyy] = new Game_1.Game(sockets[keyy].length);
+        console.dir(sockets[keyy]);
         for (var x = 0; x < sockets[keyy].length; x++) {
             var arr = [];
             for (var y = 0; y < games[keyy].players.length; y++) {
                 arr.push(games[keyy].players[y].hand);
             }
+            console.dir(arr);
             sockets[keyy][x].emit('hand', arr);
             sockets[keyy][x].emit('attack', games[keyy].currAttacker);
             sockets[keyy][x].emit('defend', games[keyy].currDefender);
@@ -151,7 +159,6 @@ io.on('connection', function (socket) {
         }
     });
     socket.emit('init');
-    socket.emit("connected");
 });
 var server = http.listen(3000, function () {
     console.log("Listening on *:3000");

@@ -5,13 +5,12 @@ import * as express from "express";
 let games: Map<string, Game> = new Map<string, Game>();
 let sockets: Map<string, Socket[]> = new Map<string, Socket[]>(); //used for game wide socket broadcasts
 
+const playerCount = 2;
 const app = express();
 app.set("port", process.env.PORT || 3000);
 
 let http = require("http").Server(app);
-let io = require('socket.io')(http, {
-	transports: ['websocket'],
-});
+let io = require('socket.io')(http);
 
 io.on('connection', (socket) => {
 	console.log("Connection received!");
@@ -26,6 +25,8 @@ io.on('connection', (socket) => {
 		sockets[key].push(socket); //push the socket to the id
 		socket.emit('game key', {"key": key}); //give the client the id
 		keyy = key;
+
+		console.log("Game create!");
 	});
 
 	socket.on('game join', (msg) => {
@@ -34,30 +35,46 @@ io.on('connection', (socket) => {
 			return;
 		}
 		if (games.has(keyy)) {
-			socket.emit('invalid request');
+			socket.emit('invalid key');
 			return;
 		}
 		sockets[msg].push(socket);
 		keyy = msg;
 		for (let x = 0; x < sockets[msg].length; x++) {
-			sockets[msg][x].emit('player join', sockets[keyy].length)
+			sockets[msg][x].emit('player join', {"count": sockets[keyy].length});
+		}
+
+		if(sockets[keyy].length === playerCount){
+			socket.emit("server ready");
 		}
 	});
 
 	socket.on('game start', (msg) => {
 		if (games.has(keyy) || sockets[keyy][0].id != socket.id || sockets[keyy].length < 2) {
-			socket.emit('invalid request');
+			console.log("Bad game");
+			socket.emit('invalid key');
 			return;
 		}
+
 		games[keyy] = new Game(sockets[keyy].length);
-		for (let x = 0; x < sockets[keyy].length; x++) {
-			let arr = [];
-			for (let y = 0; y < games[keyy].players.length; y++) {
-				arr.push(games[keyy].players[y].hand)
+
+		console.dir(sockets[keyy]);
+		try{
+			for (let x = 0; x < sockets[keyy].length; x++) {
+				let arr = [];
+				for (let y = 0; y < games[keyy].players.length; y++) {
+					arr.push(games[keyy].players[y].hand)
+				}
+
+				console.dir(arr);
+
+				sockets[keyy][x].emit('hand', arr);
+				sockets[keyy][x].emit('attack', games[keyy].currAttacker);
+				sockets[keyy][x].emit('defend', games[keyy].currDefender);
 			}
-			sockets[keyy][x].emit('hand', arr);
-			sockets[keyy][x].emit('attack', games[keyy].currAttacker);
-			sockets[keyy][x].emit('defend', games[keyy].currDefender);
+		}
+		catch (err){
+			console.warn(err.message);
 		}
 	});
 
@@ -163,7 +180,6 @@ io.on('connection', (socket) => {
 	});
 
 	socket.emit('init');
-	socket.emit("connected");
 });
 
 const server = http.listen(3000, function () {

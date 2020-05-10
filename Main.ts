@@ -69,8 +69,8 @@ io.on('connection', (socket) => {
 				console.dir(arr);
 
 				sockets[keyy][x].emit('hand', arr);
-				sockets[keyy][x].emit('attack', games[keyy].currAttacker);
-				sockets[keyy][x].emit('defend', games[keyy].currDefender);
+				sockets[keyy][x].emit('attack', {"attack": games[keyy].currAttacker});
+				sockets[keyy][x].emit('defend', {"defend": games[keyy].currDefender});
 			}
 		}
 		catch (err){
@@ -149,8 +149,8 @@ io.on('connection', (socket) => {
 				arr.push(games[keyy].players[y].hand)
 			}
 			sockets[keyy][x].emit('hand', arr);
-			sockets[keyy][x].emit('attack', games[keyy].currAttacker);
-			sockets[keyy][x].emit('defend', games[keyy].currDefender);
+			sockets[keyy][x].emit('attack', {"attack": games[keyy].currAttacker});
+			sockets[keyy][x].emit('defend', {"defend": games[keyy].currDefender});
 		}
 	});
 
@@ -174,8 +174,8 @@ io.on('connection', (socket) => {
 				arr.push(games[keyy].players[y].hand)
 			}
 			sockets[keyy][x].emit('hand', arr);
-			sockets[keyy][x].emit('attack', games[keyy].currAttacker);
-			sockets[keyy][x].emit('defend', games[keyy].currDefender);
+			sockets[keyy][x].emit('attack', {"attack": games[keyy].currAttacker});
+			sockets[keyy][x].emit('defend', {"defend": games[keyy].currDefender});
 		}
 	});
 

@@ -103,24 +103,45 @@ class Game {
 			return 0; //if nobody has any trumps, let the first player start
 		return currLowest.owner;
 	}
+	checkIfStillInGame(player: number) {
+		if (this.players[player].hand.length == 0)
+			return false; //the player is not in game
+		else {
+			if (this.players[player].hand.length > 2)
+				return true; //if hand is bigger than 2, no point in checking, since there is no way the hand is only jokers
+			let onlyJokers = true;
+			for (let x = 0; x < this.players[player].hand.length; x++) {
+				if (!this.players[player].hand[x].isJoker) {
+					onlyJokers = false; //not a joker, player is still in the game
+					break; //no point in continuing, we got our answer
+				}
+			}
+			if (onlyJokers) {
+				this.players[player].hand = []; //remove the players hand if it is only jokers, no point in storing it anymore as the player is out of the game
+				return false;
+			} else {
+				return true; //the player is still in it
+			}
+		}
+	}
 	findNextPlayer() { //function made to iterate through the players array and find the next player who is still in the game
 		let x = this.currAttacker + 1;
 		if (x == this.players.length)
 			x = 0;
-		while (this.players[x].hand.length == 0) {
+		while (!this.checkIfStillInGame(x)) { //make sure to skip the players if their hands are empty
 			if (x < this.players.length) {
 				x++;
 			} else {
 				x = 0;
 			}
 			if (x == this.currAttacker) {
-				throw "Game is Over.";
+				return -1; //return -1 if the next player is unfindable, since that means there is only one player left and that the game is over
 			}
 		}
 		return x;
 	}
 	addToAttack(card: Card) { //called when someone makes an attack or a card is thrown in
-		if (this.tableBottom.length == 0 && card.owner == this.currAttacker) {
+		if (this.tableBottom.length == 0 && card.owner == this.currAttacker && this.players[card.owner].hand.includes(card)) {
 			let x = this.players[card.owner].hand.indexOf(card);
 			if (x == -1)
 				return 0;
@@ -129,6 +150,8 @@ class Game {
 			this.cardDebt[card.owner] = 1;
 			return 1;
 		} else if (card.owner != this.currAttacker) {
+			return 0;
+		} else if (!this.players[card.owner].hand.includes(card)) { //make sure that the player isn't fooling the server here
 			return 0;
 		}
 		if (this.tableBottom.filter((x) => x.rank == card.rank) || Object.values(this.tableTop).filter((x) => x.rank == card.rank)) {
@@ -149,7 +172,7 @@ class Game {
 		return 0;
 	}
 	addToDefend(card: Card, defendPos: number) { //called when the defending player defends
-		if (card.owner != this.findNextPlayer())
+		if (card.owner != this.currDefender || this.players[this.currDefender].hand.includes(card))
 			return 0;
 		if (defendPos < this.tableBottom.length) {
 			if (this.compare(this.tableBottom[defendPos], card) == 1) {
@@ -187,13 +210,13 @@ class Game {
 		}
 		this.tableTop = new Map<number, Card>();
 		this.repayDebt();
-		try {
-			this.currAttacker = this.currDefender;
-			this.currAttacker = this.findNextPlayer(); //run this twice, as we are skipping the defender.
-			this.currDefender = this.findNextPlayer();
-		} catch {
+		this.currAttacker = this.currDefender;
+		this.currAttacker = this.findNextPlayer(); //run this twice, as we are skipping the defender.
+		if (this.currAttacker == -1)
+			return 1; //if either next attacker or defender are unfindable, return 1 to let the socket code know that the Game is over.
+		this.currDefender = this.findNextPlayer();
+		if (this.currDefender == -1)
 			return 1;
-		}
 		return 0;
 	}
 	endTurn() {
@@ -202,7 +225,11 @@ class Game {
 		this.repayDebt();
 		try {
 			this.currAttacker = this.findNextPlayer();
+			if (this.currAttacker == -1) //if there is no current attacker or defender, the game is over
+				return 1;
 			this.currDefender = this.findNextPlayer();
+			if (this.currDefender == -1)
+				return 1;
 		} catch {
 			return 1;
 		}
